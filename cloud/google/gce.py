@@ -128,6 +128,13 @@ options:
     required: false
     default: "true"
     aliases: []
+  external_ip:
+    version_added: "1.9"
+    description:
+      - type of external ip, ephemeral by default
+    required: false
+    default: "ephemeral"
+    aliases: []
 
 requirements: [ "libcloud" ]
 notes:
@@ -236,6 +243,12 @@ def get_instance_info(inst):
                                 key=lambda disk_info: disk_info['index'])]
     else:
         disk_names = []
+
+    if len(inst.public_ips) == 0:
+        public_ip = None
+    else:
+        public_ip = inst.public_ips[0]
+
     return({
         'image': not inst.image is None and inst.image.split('/')[-1] or None,
         'disks': disk_names,
@@ -244,7 +257,7 @@ def get_instance_info(inst):
         'name': inst.name,
         'network': netname,
         'private_ip': inst.private_ips[0],
-        'public_ip': inst.public_ips[0],
+        'public_ip': public_ip,
         'status': ('status' in inst.extra) and inst.extra['status'] or None,
         'tags': ('tags' in inst.extra) and inst.extra['tags'] or [],
         'zone': ('zone' in inst.extra) and inst.extra['zone'].name or None,
@@ -274,6 +287,10 @@ def create_instances(module, gce, instance_names):
     zone = module.params.get('zone')
     ip_forward = module.params.get('ip_forward')
     disk_auto_delete = module.params.get('disk_auto_delete')
+    external_ip = module.params.get('external_ip')
+
+    if external_ip == "none":
+        external_ip = None
 
     new_instances = []
     changed = False
@@ -335,7 +352,8 @@ def create_instances(module, gce, instance_names):
             inst = gce.create_node(name, lc_machine_type, lc_image,
                     location=lc_zone, ex_network=network, ex_tags=tags,
                     ex_metadata=metadata, ex_boot_disk=pd, ex_can_ip_forward=ip_forward,
-                    ex_disk_auto_delete=disk_auto_delete)
+                    ex_disk_auto_delete=disk_auto_delete, external_ip=external_ip)
+
             changed = True
         except ResourceExistsError:
             inst = gce.ex_get_node(name, lc_zone)
@@ -427,6 +445,8 @@ def main():
             project_id = dict(),
             ip_forward = dict(type='bool', default=False),
             disk_auto_delete = dict(type='bool', default=True),
+            external_ip = dict(choices=['ephemeral', 'none'],
+                    default='ephemeral'),
         )
     )
 
