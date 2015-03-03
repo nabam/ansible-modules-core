@@ -122,6 +122,12 @@ options:
     required: false
     default: "false"
     aliases: []
+  disk_auto_delete:
+    description:
+      - if set boot disk will be removed after instance destruction
+    required: false
+    default: "true"
+    aliases: []
 
 requirements: [ "libcloud" ]
 notes:
@@ -267,6 +273,7 @@ def create_instances(module, gce, instance_names):
     tags = module.params.get('tags')
     zone = module.params.get('zone')
     ip_forward = module.params.get('ip_forward')
+    disk_auto_delete = module.params.get('disk_auto_delete')
 
     new_instances = []
     changed = False
@@ -327,7 +334,8 @@ def create_instances(module, gce, instance_names):
         try:
             inst = gce.create_node(name, lc_machine_type, lc_image,
                     location=lc_zone, ex_network=network, ex_tags=tags,
-                    ex_metadata=metadata, ex_boot_disk=pd, ex_can_ip_forward=ip_forward)
+                    ex_metadata=metadata, ex_boot_disk=pd, ex_can_ip_forward=ip_forward,
+                    ex_disk_auto_delete=disk_auto_delete)
             changed = True
         except ResourceExistsError:
             inst = gce.ex_get_node(name, lc_zone)
@@ -418,6 +426,7 @@ def main():
             pem_file = dict(),
             project_id = dict(),
             ip_forward = dict(type='bool', default=False),
+            disk_auto_delete = dict(type='bool', default=True),
         )
     )
 
